@@ -10,6 +10,8 @@
 # go to https://developer.spotify.com/dashboard/applications and create an app
 # put the client ID in the SPA_ID variable
 # and the client secret in SPA_SECRET
+# put those variables in ~/.config/spa/keys, so that spa can use them.
+# don't export them! any program would be able to access them that way. 
 
 # Inspired by sp for linux
 # https://gist.github.com/wandernauta/6800547

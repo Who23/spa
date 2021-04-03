@@ -1,0 +1,188 @@
+#!/bin/bash
+
+# CLI controller for spotify on MacOS
+# no premium subscription required
+# can search for songs/albums/playlists/artists & control spotify
+# uses native macos applescript apis
+# Who23 @ Github
+
+# does require a signup to the spotify api (free)
+# go to https://developer.spotify.com/dashboard/applications and create an app
+# put the client ID in the SPA_ID variable
+# and the client secret in SPA_SECRET
+
+# Inspired by sp for linux
+# https://gist.github.com/wandernauta/6800547
+
+# Copyright (C) 2013 Wander Nauta
+# Copyright (C) 2020 Aditya Shrivastava
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this
+# software and associated documentation files (the "Software"), to deal in the Software 
+# without restriction, including without limitation the rights to use, copy, modify, merge, 
+# publish, distribute, sublicense, and/or sell copies of the Software, and to permit 
+# persons to whom the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all copies or 
+# substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT 
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION 
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+# OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# setting this variable will open spotify if it is not open
+OPEN_SPOTIFY="yes"
+source ~/.config/spa/keys
+
+function require {
+  if ! which $1 &>/dev/null 2>&1 ; then
+    echo "spa needs $1 for this command"
+    exit 1
+  fi
+}
+
+require osascript
+
+function app-help {
+  echo "A CLI to control spotify on MacOS"
+  echo ""
+  echo "spa play   - plays track"
+  echo "spa pause  - pauses track"
+  echo "spa toggle - toggles play/pause on a track"
+  echo "spa skip   - skip track"
+  echo "spa prev   - goes to previous track"
+  echo ""
+  echo "spa info   - prints title and artist of track"
+  echo "spa art    - gets the url for the track art"
+  echo "spa name   - gets the name of the track"
+  echo "spa artist - gets the name of the artist of the track"
+  echo ""
+  echo "spa search - searches for tracks/albums/artists/playlists"
+  echo "           - use -t/-l/-a/-p flag before the search"
+}
+
+# based off vorbeiei's sp fork, but modified
+# thinking of using MusStream's method of no api search?
+# ex. spa search -p "Celeste OST"
+function app-search {
+  require curl
+
+  # get the type of search 
+  case $1 in
+    "-p")
+      TYPE="playlist"
+      ;;
+    "-l")
+      TYPE="album"
+      ;;
+    "-a")
+      TYPE="artist"
+      ;;
+    "-t")
+      TYPE="track"
+      ;;
+    *)
+      echo "please specify type of search"
+      echo "-l - album"
+      echo "-a - artist"
+      echo "-p - playlist"
+      echo "-t - track"
+      exit 1
+      ;;
+  esac
+
+  Q="$2"
+
+  if [[ $SPA_ID == "" ]] || [[ $SPA_SECRET == "" ]] ; then
+    echo "please set the SPA_ID & SPA_SECRET vars as described in the comments!"
+    exit 1
+  fi
+
+  SPAB64=$(printf "$SPA_ID:$SPA_SECRET" | base64)
+
+  # get the auth token
+  ST=$(curl -s -X "POST" -H "Authorization: Basic $SPAB64" -d grant_type=client_credentials https://accounts.spotify.com/api/token)
+  ST=$(echo $ST | grep -E -o "access_token\":\"[a-zA-Z0-9_-]+\"" -m 1)
+  ST=${ST:15:86}
+
+  # get the spotify uri
+  URI=$(curl -H "Authorization: Bearer $ST" -s -G --data-urlencode "q=$Q" https://api.spotify.com/v1/search\?type=$TYPE\&limit=1)
+  URI=$(echo $URI | grep -E -o "spotify:$TYPE:[a-zA-Z0-9]+" -m 1)
+
+  # make sure the search had a result
+  if [[ $URI == "" ]] 
+  then
+    echo "no results found for the $TYPE \"$Q\""
+  else
+    app-open $URI
+  fi
+
+}
+
+# plays a spotify uri
+function app-open {
+  osascript -e 'tell application "Spotify"' -e "play track \"$1\"" -e 'end tell'
+  echo "now playing $(app-name) by $(app-artist)"
+}
+
+#### basic controls ####
+function app-play {
+  osascript -e 'tell application "Spotify" to play'
+}
+
+function app-pause {
+  osascript -e 'tell application "Spotify" to pause'
+}
+
+function app-toggle {
+  osascript -e 'tell application "Spotify" to playpause'
+}
+
+function app-skip {
+  osascript -e 'tell application "Spotify" to next track'
+}
+
+function app-prev {
+  osascript -e 'tell application "Spotify" to previous track'
+}
+
+#### info commands ####
+function app-info {
+  osascript -e 'tell application "Spotify" to return "" & name of current track & " - " & artist of current track'
+}
+
+function app-art {
+  osascript -e 'tell application "Spotify" to return artwork url of current track'
+}
+
+function app-name {
+  osascript -e 'tell application "Spotify" to return name of current track'
+}
+
+function app-artist {
+  osascript -e 'tell application "Spotify" to return artist of current track'
+}
+
+# no args given
+if [[ -z "$1" ]] || ! type "app-$1" &>/dev/null 2>&1 ; then
+  app-help
+
+# execute given command, check if spotify is running
+else
+  running=$(osascript -e 'if application "Spotify" is running then' -e 'return "yes"' -e 'else' -e 'return "no"' -e "end if")
+  if [[ $running == "yes" ]] ; then
+    $"app-$1" "${@:2}"
+  else
+    if [[ $OPEN_SPOTIFY != "" ]]; then
+      open -a Spotify
+      $"app-$1" "${@:2}"
+    else
+      echo "spotify is not running & OPEN_SPOTIFY is not set" >&2
+      exit 1
+    fi
+  fi
+
+fi

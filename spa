@@ -10,8 +10,9 @@
 # go to https://developer.spotify.com/dashboard/applications and create an app
 # put the client ID in the SPA_ID variable
 # and the client secret in SPA_SECRET
-# put those variables in ~/.config/spa/keys, so that spa can use them.
-# don't export them! any program would be able to access them that way. 
+
+# Consider putting your `SPA_SECERT` behind something like keychain,
+# since it's otherwise accessible as plain text in `spa`
 
 # Inspired by sp for linux
 # https://gist.github.com/wandernauta/6800547
@@ -37,7 +38,8 @@
 
 # setting this variable will open spotify if it is not open
 OPEN_SPOTIFY="yes"
-source ~/.config/spa/keys
+SPA_ID=""
+SPA_SECRET=""
 
 function require {
   if ! which $1 &>/dev/null 2>&1 ; then

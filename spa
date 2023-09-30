@@ -73,6 +73,7 @@ function app-help {
 # ex. spa search -p "Celeste OST"
 function app-search {
   require curl
+  require jq
 
   # get the type of search 
   case $1 in
@@ -109,8 +110,7 @@ function app-search {
 
   # get the auth token
   ST=$(curl -s -X "POST" -H "Authorization: Basic $SPAB64" -d grant_type=client_credentials https://accounts.spotify.com/api/token)
-  ST=$(echo $ST | grep -E -o "access_token\":\"[a-zA-Z0-9_-]+\"" -m 1)
-  ST=${ST:15:86}
+  ST=$(echo $ST | jq -r '.access_token')
 
   # get the spotify uri
   URI=$(curl -H "Authorization: Bearer $ST" -s -G --data-urlencode "q=$Q" https://api.spotify.com/v1/search\?type=$TYPE\&limit=1)

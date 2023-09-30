@@ -53,7 +53,10 @@ require osascript
 function app-help {
   echo "A CLI to control spotify on MacOS"
   echo ""
-  echo "spa play   - plays track"
+  echo "spa <song> - alias for 'spa search -t \$*'"
+  echo "             so 'spa many words in song name' will work"
+  echo ""
+  echo "spa play   - resumes playback of track"
   echo "spa pause  - pauses track"
   echo "spa toggle - toggles play/pause on a track"
   echo "spa skip   - skip track"
@@ -171,22 +174,24 @@ function app-artist {
 }
 
 # no args given
-if [[ -z "$1" ]] || ! type "app-$1" &>/dev/null 2>&1 ; then
+if [[ -z "$1" ]]; then
   app-help
 
 # execute given command, check if spotify is running
 else
   running=$(osascript -e 'if application "Spotify" is running then' -e 'return "yes"' -e 'else' -e 'return "no"' -e "end if")
-  if [[ $running == "yes" ]] ; then
-    $"app-$1" "${@:2}"
-  else
-    if [[ $OPEN_SPOTIFY != "" ]]; then
-      open -a Spotify
-      $"app-$1" "${@:2}"
-    else
+  if [[ $running != "yes" && $OPEN_SPOTIFY == "" ]] ; then
       echo "spotify is not running & OPEN_SPOTIFY is not set" >&2
       exit 1
+  else
+    if [[ $running != "yes" && $OPEN_SPOTIFY != "" ]] ; then
+      open -a Spotify
     fi
   fi
 
+  if type $"app-$1" >/dev/null 2>&1; then
+    $"app-$1" "${@:2}"
+  else
+    app-search -t "$*"
+  fi
 fi

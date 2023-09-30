@@ -18,3 +18,25 @@ Inspired by sp for linux
 https://gist.github.com/wandernauta/6800547
 
 Licensed under the MIT license (included in script)
+
+## usage
+```
+A CLI to control spotify on MacOS
+
+spa <song> - alias for 'spa search -t $*'
+             so 'spa many words in song name' will work
+
+spa play   - resumes playback of track
+spa pause  - pauses track
+spa toggle - toggles play/pause on a track
+spa skip   - skip track
+spa prev   - goes to previous track
+
+spa info   - prints title and artist of track
+spa art    - gets the url for the track art
+spa name   - gets the name of the track
+spa artist - gets the name of the artist of the track
+
+spa search - searches for tracks/albums/artists/playlists
+           - use -t/-l/-a/-p flag before the search
+```
